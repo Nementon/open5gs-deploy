@@ -5,7 +5,9 @@ global:
 logger:
   file: 
     path: /open5gs/logs/pcf.log
-  level: debug
+  level: {{LOG_LEVEL}}
+
+db_uri: {{DB_URI}}
 
 pcf:
   sbi:
@@ -15,3 +17,23 @@ pcf:
     client:
       nrf:
         - uri: http://{{NRF_IP}}:80
+
+# Locally configured policy
+policy:
+  - plmn_id:
+      mcc: {{MCC}}
+      mnc: {{MNC}}
+    slice:
+      - sst: {{SST}}
+        sd: {{SD}}
+        default_indicator: true
+        session:
+          - name: internet
+            type: 3
+            ambr:
+              downlink:
+                value: 1
+                unit: 3
+              uplink:
+                value: 1
+                unit: 3

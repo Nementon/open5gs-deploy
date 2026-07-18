@@ -5,7 +5,7 @@ global:
 logger:
   file: 
     path: /open5gs/logs/udm.log
-  level: debug
+  level: {{LOG_LEVEL}}
 
 udm:
   sbi:

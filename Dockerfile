@@ -102,16 +102,18 @@ ARG OPEN5GS_VERSION=v2.7.2
 # Copy the entire versions folder to a temporary context
 COPY versions /tmp/versions
 
-# Resolve and copy version-specific or default configuration and entrypoint
+# Resolve and copy version-specific or default configuration, entrypoint, and provision script
 RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs && \
     if [ -d "/tmp/versions/${OPEN5GS_VERSION}" ]; then \
         echo "Using specific configurations for version ${OPEN5GS_VERSION}"; \
         cp -aL /tmp/versions/${OPEN5GS_VERSION}/config/* /open5gs/config/ 2>/dev/null || cp -a /tmp/versions/default/config/* /open5gs/config/; \
         cp -L /tmp/versions/${OPEN5GS_VERSION}/entrypoint.sh /open5gs/entrypoint.sh 2>/dev/null || cp /tmp/versions/default/entrypoint.sh /open5gs/entrypoint.sh; \
+        cp -L /tmp/versions/${OPEN5GS_VERSION}/provision.js /open5gs/provision.js 2>/dev/null || cp /tmp/versions/default/provision.js /open5gs/provision.js; \
     else \
         echo "Version ${OPEN5GS_VERSION} configs not found. Falling back to default configs."; \
         cp -a /tmp/versions/default/config/* /open5gs/config/; \
         cp /tmp/versions/default/entrypoint.sh /open5gs/entrypoint.sh; \
+        cp /tmp/versions/default/provision.js /open5gs/provision.js; \
     fi && \
     chmod +x /open5gs/entrypoint.sh && \
     rm -rf /tmp/versions

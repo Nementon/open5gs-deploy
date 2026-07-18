@@ -5,7 +5,7 @@ global:
 logger:
   file: 
     path: /open5gs/logs/upf.log
-  level: debug
+  level: {{LOG_LEVEL}}
 
 upf:
   pfcp:
@@ -15,6 +15,7 @@ upf:
     server:
       - address: {{MY_IP}}
   session:
-    - subnet: 10.45.0.1/16
+    - subnet: {{UE_SUBNET}}
+      gateway: {{UE_GATEWAY}}
       dnn: internet
       dev: ogstun

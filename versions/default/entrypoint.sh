@@ -55,6 +55,16 @@ if [ "$NF" != "webui" ]; then
     sed -i "s/{{SST}}/${SST:-1}/g" /tmp/config/${NF}.yaml
     sed -i "s/{{SD}}/${SD:-000001}/g" /tmp/config/${NF}.yaml
 
+    # Replace UE_SUBNET and UE_GATEWAY placeholders
+    sed -i "s|{{UE_SUBNET}}|${UE_SUBNET:-10.45.0.0/16}|g" /tmp/config/${NF}.yaml
+    sed -i "s|{{UE_GATEWAY}}|${UE_GATEWAY:-10.45.0.1}|g" /tmp/config/${NF}.yaml
+
+    # Replace LOG_LEVEL placeholder
+    sed -i "s/{{LOG_LEVEL}}/${LOG_LEVEL:-info}/g" /tmp/config/${NF}.yaml
+
+    # Replace DB_URI placeholder
+    sed -i "s|{{DB_URI}}|${DB_URI:-mongodb://mongodb:27017/open5gs}|g" /tmp/config/${NF}.yaml
+
     # Resolve NRF IP for components that require registration
     if [ "$NF" != "nrf" ] && [ "$NF" != "upf" ]; then
         echo "Waiting for NRF to be resolvable..."
@@ -95,7 +105,11 @@ case "$NF" in
 
         # Create TUN interface
         ip tuntap add name ogstun mode tun
-        ip addr add ${UE_GATEWAY:-10.45.0.1/16} dev ogstun
+        GW_IP="${UE_GATEWAY:-10.45.0.1}"
+        if [ "${GW_IP#*/}" = "${GW_IP}" ]; then
+            GW_IP="${GW_IP}/${UE_SUBNET#*/}"
+        fi
+        ip addr add ${GW_IP} dev ogstun
         ip link set ogstun up
 
         # Set up NAT/MASQUERADE to route UE traffic to the outer network
@@ -133,6 +147,10 @@ case "$NF" in
         exec open5gs-bsfd -c /tmp/config/bsf.yaml "$@"
         ;;
     webui)
+        if [ "${PROVISION_SUBSCRIBERS:-false}" = "true" ] || [ "${PROVISION_SUBSCRIBERS:-false}" = "True" ]; then
+            echo "Subscriber provisioning is enabled. Running provision script..."
+            NODE_PATH=/opt/open5gs/webui/node_modules /usr/bin/node /open5gs/provision.js
+        fi
         echo "Starting WebUI..."
         cd /opt/open5gs/webui
         exec /usr/bin/node server/index.js "$@"

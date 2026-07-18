@@ -11,21 +11,23 @@ services:
 
   nrf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
     image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: nrf
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   udr:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -35,14 +37,17 @@ services:
     depends_on:
       - mongodb
       - nrf
+    environment:
+      - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   udm:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -52,14 +57,16 @@ services:
     depends_on:
       - nrf
       - udr
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   ausf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -69,14 +76,16 @@ services:
     depends_on:
       - nrf
       - udm
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   nssf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -87,15 +96,16 @@ services:
       - nrf
     environment:
       - SST=${SST:-1}
-      - SD=${SD:-000001}
+      - SD=${SD:-ffffff}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   pcf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -103,15 +113,23 @@ services:
     restart: unless-stopped
     command: pcf
     depends_on:
+      - mongodb
       - nrf
+    environment:
+      - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
+      - MCC=${MCC:-999}
+      - MNC=${MNC:-70}
+      - SST=${SST:-1}
+      - SD=${SD:-ffffff}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   bsf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -120,14 +138,16 @@ services:
     command: bsf
     depends_on:
       - nrf
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   amf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -141,9 +161,10 @@ services:
       - MNC=${MNC:-70}
       - TAC=${TAC:-1}
       - SST=${SST:-1}
-      - SD=${SD:-000001}
+      - SD=${SD:-ffffff}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     ports:
       # NGAP interface for gNB connection (SCTP)
       - "${AMF_NGAP_PORT:-38412}:38412/sctp"
@@ -152,7 +173,7 @@ services:
 
   upf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -164,12 +185,13 @@ services:
     environment:
       - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
       - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     cap_add:
       - NET_ADMIN
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     ports:
       # GTP-U interface for User Plane traffic (UDP)
       - "${UPF_GTPU_PORT:-2152}:2152/udp"
@@ -178,7 +200,7 @@ services:
 
   smf:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -189,14 +211,18 @@ services:
       - nrf
       - amf
       - upf
+    environment:
+      - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
+      - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - "${LOGS_DIR:-../../logs}:/open5gs/logs"
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
 
   webui:
     build:
-      context: ../..
+      context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
@@ -209,6 +235,12 @@ services:
       - DB_URI=mongodb://mongodb:27017/open5gs
       - HOSTNAME=0.0.0.0
       - PORT=9999
+      - PROVISION_SUBSCRIBERS=${PROVISION_SUBSCRIBERS:-false}
+      - MCC=${MCC:-999}
+      - MNC=${MNC:-70}
+      - SST=${SST:-1}
+      - SD=${SD:-ffffff}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - "${WEBUI_PORT:-9999}:9999"
     networks:

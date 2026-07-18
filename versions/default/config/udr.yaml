@@ -5,9 +5,9 @@ global:
 logger:
   file: 
     path: /open5gs/logs/udr.log
-  level: debug
+  level: {{LOG_LEVEL}}
 
-db_uri: mongodb://mongodb:27017/open5gs
+db_uri: {{DB_URI}}
 
 udr:
   sbi:

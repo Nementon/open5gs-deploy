@@ -5,7 +5,7 @@ global:
 logger:
   file: 
     path: /open5gs/logs/bsf.log
-  level: debug
+  level: {{LOG_LEVEL}}
 
 bsf:
   sbi:

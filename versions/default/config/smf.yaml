@@ -5,7 +5,7 @@ global:
 logger:
   file: 
     path: /open5gs/logs/smf.log
-  level: debug
+  level: {{LOG_LEVEL}}
 
 smf:
   gtpu:
@@ -25,7 +25,8 @@ smf:
       upf:
         - address: {{UPF_IP}}
   session:
-    - subnet: 10.45.0.1/16
+    - subnet: {{UE_SUBNET}}
+      gateway: {{UE_GATEWAY}}
       dnn: internet
   dns:
     - 8.8.8.8
