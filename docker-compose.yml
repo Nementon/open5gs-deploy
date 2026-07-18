@@ -1,0 +1,231 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:${MONGODB_VERSION}
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      open5gs-net:
+        ipv4_address: ${MONGODB_IP}
+    ports:
+      - "27017:27017"
+
+  nrf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-nrf
+    restart: unless-stopped
+    command: nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${NRF_IP}
+
+  udr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-udr
+    restart: unless-stopped
+    command: udr
+    depends_on:
+      - mongodb
+      - nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${UDR_IP}
+
+  udm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-udm
+    restart: unless-stopped
+    command: udm
+    depends_on:
+      - nrf
+      - udr
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${UDM_IP}
+
+  ausf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-ausf
+    restart: unless-stopped
+    command: ausf
+    depends_on:
+      - nrf
+      - udm
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${AUSF_IP}
+
+  nssf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-nssf
+    restart: unless-stopped
+    command: nssf
+    depends_on:
+      - nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${NSSF_IP}
+
+  pcf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-pcf
+    restart: unless-stopped
+    command: pcf
+    depends_on:
+      - nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${PCF_IP}
+
+  bsf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-bsf
+    restart: unless-stopped
+    command: bsf
+    depends_on:
+      - nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${BSF_IP}
+
+  amf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-amf
+    restart: unless-stopped
+    command: amf
+    depends_on:
+      - nrf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    ports:
+      # NGAP interface for gNB connection (SCTP)
+      - "38412:38412/sctp"
+    networks:
+      open5gs-net:
+        ipv4_address: ${AMF_IP}
+
+  upf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-upf
+    restart: unless-stopped
+    command: upf
+    depends_on:
+      - nrf
+    environment:
+      - UE_SUBNET=${UE_SUBNET}
+      - UE_GATEWAY=${UE_GATEWAY}
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    ports:
+      # GTP-U interface for User Plane traffic (UDP)
+      - "2152:2152/udp"
+    networks:
+      open5gs-net:
+        ipv4_address: ${UPF_IP}
+
+  smf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-smf
+    restart: unless-stopped
+    command: smf
+    depends_on:
+      - nrf
+      - amf
+      - upf
+    volumes:
+      - ./config:/open5gs/config:ro
+      - ./logs:/open5gs/logs
+    networks:
+      open5gs-net:
+        ipv4_address: ${SMF_IP}
+
+  webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open5gs-deploy:${OPEN5GS_TAG}
+    container_name: open5gs-webui
+    restart: unless-stopped
+    command: webui
+    depends_on:
+      - mongodb
+    environment:
+      - DB_URI=mongodb://mongodb:27017/open5gs
+      - HOSTNAME=0.0.0.0
+      - PORT=9999
+    ports:
+      - "9999:9999"
+    networks:
+      open5gs-net:
+        ipv4_address: ${WEBUI_IP}
+
+volumes:
+  mongodb_data:
+
+networks:
+  open5gs-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET_5GC}

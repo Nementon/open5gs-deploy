@@ -1,0 +1,12 @@
+logger:
+  file: /open5gs/logs/ausf.log
+  level: info
+
+ausf:
+  sbi:
+    server:
+      - address: 10.9.0.22
+        port: 7777
+    client:
+      nrf:
+        - uri: http://10.9.0.10:7777

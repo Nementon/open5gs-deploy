@@ -1,0 +1,24 @@
+logger:
+  file: /open5gs/logs/smf.log
+  level: info
+
+smf:
+  sbi:
+    server:
+      - address: 10.9.0.40
+        port: 7777
+    client:
+      nrf:
+        - uri: http://10.9.0.10:7777
+  pfcp:
+    server:
+      - address: 10.9.0.40
+    client:
+      upf:
+        - address: 10.9.0.50
+  session:
+    - subnet: 10.45.0.1/16
+      dnn: internet
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4

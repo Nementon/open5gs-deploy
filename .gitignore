@@ -1,0 +1,22 @@
+# MongoDB data directory
+mongodb_data/
+
+# Logs
+logs/
+*.log
+
+# Node.js (if WebUI dependencies are installed locally)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and local configurations
+.env.local
+.env.*.local
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

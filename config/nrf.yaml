@@ -1,0 +1,9 @@
+logger:
+  file: /open5gs/logs/nrf.log
+  level: info
+
+nrf:
+  sbi:
+    server:
+      - address: 10.9.0.10
+        port: 7777

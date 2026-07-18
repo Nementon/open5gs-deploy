@@ -1,0 +1,15 @@
+logger:
+  file: /open5gs/logs/upf.log
+  level: info
+
+upf:
+  pfcp:
+    server:
+      - address: 10.9.0.50
+  gtpu:
+    server:
+      - address: 10.9.0.50
+  session:
+    - subnet: 10.45.0.1/16
+      dnn: internet
+      dev: ogstun
