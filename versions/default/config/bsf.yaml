@@ -3,14 +3,15 @@ global:
     ue: 1024
 
 logger:
-  file: /open5gs/logs/bsf.log
-  level: info
+  file: 
+    path: /open5gs/logs/bsf.log
+  level: debug
 
 bsf:
   sbi:
     server:
       - address: {{MY_IP}}
-        port: 7777
+        port: 80
     client:
       nrf:
-        - uri: http://{{NRF_IP}}:7777
+        - uri: http://{{NRF_IP}}:80

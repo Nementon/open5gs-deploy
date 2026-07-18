@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:${MONGODB_VERSION}
+    image: mongo:${MONGODB_VERSION:-6.0}
     restart: unless-stopped
     volumes:
       - mongodb_data:/data/db
@@ -14,12 +14,11 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -29,15 +28,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: udr
     depends_on:
       - mongodb
       - nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -47,15 +45,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: udm
     depends_on:
       - nrf
       - udr
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -65,15 +62,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: ausf
     depends_on:
       - nrf
       - udm
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -83,14 +79,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: nssf
     depends_on:
       - nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -100,14 +95,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: pcf
     depends_on:
       - nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -117,14 +111,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: bsf
     depends_on:
       - nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -134,14 +127,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: amf
     depends_on:
       - nrf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     ports:
       # NGAP interface for gNB connection (SCTP)
@@ -154,21 +146,20 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: upf
     depends_on:
       - nrf
     environment:
-      - UE_SUBNET=${UE_SUBNET}
-      - UE_GATEWAY=${UE_GATEWAY}
+      - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
+      - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
     cap_add:
       - NET_ADMIN
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     ports:
       # GTP-U interface for User Plane traffic (UDP)
@@ -181,8 +172,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: smf
     depends_on:
@@ -190,7 +181,6 @@ services:
       - amf
       - upf
     volumes:
-      - ./config:/open5gs/config:ro
       - ./logs:/open5gs/logs
     networks:
       - open5gs-net
@@ -200,8 +190,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
-    image: open5gs-deploy:${OPEN5GS_VERSION}
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
     command: webui
     depends_on:

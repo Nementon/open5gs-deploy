@@ -3,8 +3,9 @@ global:
     ue: 1024
 
 logger:
-  file: /open5gs/logs/upf.log
-  level: info
+  file: 
+    path: /open5gs/logs/upf.log
+  level: debug
 
 upf:
   pfcp:

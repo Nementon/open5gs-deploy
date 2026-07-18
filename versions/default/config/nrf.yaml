@@ -3,11 +3,12 @@ global:
     ue: 1024
 
 logger:
-  file: /open5gs/logs/nrf.log
-  level: info
+  file: 
+    path: /open5gs/logs/nrf.log
+  level: debug
 
 nrf:
   sbi:
     server:
       - address: {{MY_IP}}
-        port: 7777
+        port: 80

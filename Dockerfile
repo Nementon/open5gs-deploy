@@ -96,12 +96,25 @@ COPY --from=builder /src/open5gs/webui /opt/open5gs/webui
 ENV PATH="/opt/open5gs/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/open5gs/lib:/opt/open5gs/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
 
-# Set up runtime directories and logs
-RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs
+# Argument to identify Open5GS target version (matching builder stage)
+ARG OPEN5GS_VERSION=v2.7.2
 
-# Copy entrypoint script (from host context)
-COPY entrypoint.sh /open5gs/entrypoint.sh
-RUN chmod +x /open5gs/entrypoint.sh
+# Copy the entire versions folder to a temporary context
+COPY versions /tmp/versions
+
+# Resolve and copy version-specific or default configuration and entrypoint
+RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs && \
+    if [ -d "/tmp/versions/${OPEN5GS_VERSION}" ]; then \
+        echo "Using specific configurations for version ${OPEN5GS_VERSION}"; \
+        cp -aL /tmp/versions/${OPEN5GS_VERSION}/config/* /open5gs/config/ 2>/dev/null || cp -a /tmp/versions/default/config/* /open5gs/config/; \
+        cp -L /tmp/versions/${OPEN5GS_VERSION}/entrypoint.sh /open5gs/entrypoint.sh 2>/dev/null || cp /tmp/versions/default/entrypoint.sh /open5gs/entrypoint.sh; \
+    else \
+        echo "Version ${OPEN5GS_VERSION} configs not found. Falling back to default configs."; \
+        cp -a /tmp/versions/default/config/* /open5gs/config/; \
+        cp /tmp/versions/default/entrypoint.sh /open5gs/entrypoint.sh; \
+    fi && \
+    chmod +x /open5gs/entrypoint.sh && \
+    rm -rf /tmp/versions
 
 # Set working directory
 WORKDIR /open5gs
