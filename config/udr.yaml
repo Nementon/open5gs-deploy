@@ -1,6 +1,12 @@
+global:
+  max:
+    ue: 1024
+
 logger:
   file: /open5gs/logs/udr.log
   level: info
+
+db_uri: mongodb://mongodb:27017/open5gs
 
 udr:
   sbi:
@@ -10,4 +16,3 @@ udr:
     client:
       nrf:
         - uri: http://10.9.0.10:7777
-  db_uri: mongodb://mongodb:27017/open5gs

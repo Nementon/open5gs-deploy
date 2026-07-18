@@ -1,8 +1,15 @@
+global:
+  max:
+    ue: 1024
+
 logger:
   file: /open5gs/logs/smf.log
   level: info
 
 smf:
+  gtpu:
+    server:
+      - address: 10.9.0.40
   sbi:
     server:
       - address: 10.9.0.40

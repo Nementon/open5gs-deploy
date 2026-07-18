@@ -57,7 +57,8 @@ graph TD
 ## Features
 
 - **Microservices-based**: Every Open5GS Network Function runs in its own container.
-- **Single Base Image**: A single Docker image built using the official Ubuntu PPA reduces image complexity.
+- **Optimized Multi-Stage Build**: A multi-stage Docker build that compiles Open5GS from source and discards compilation tools in the final runtime stage, keeping container images extremely lightweight.
+- **Switchable Versions**: Easily build and switch between arbitrary Open5GS versions (e.g. `v2.7.2`, `v2.6.6`) by editing `OPEN5GS_VERSION` in the `.env` file.
 - **Robust Networking**: Statically assigned IPv4 network configuration prevents DNS resolution issues for SCTP/GTP protocols.
 - **Automated User Plane Setup**: The UPF entrypoint script automatically initializes the `ogstun` tunnel device and configures NAT (MASQUERADE) rules so that Connected Devices (UEs) can access the external internet.
 - **Persistent DB & Logs**: MongoDB data is persisted via Docker volumes, and all network function logs are saved to the host `./logs/` folder.

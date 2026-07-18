@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:${MONGODB_VERSION}
@@ -17,7 +15,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-nrf
     restart: unless-stopped
     command: nrf
@@ -32,7 +32,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-udr
     restart: unless-stopped
     command: udr
@@ -50,7 +52,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-udm
     restart: unless-stopped
     command: udm
@@ -68,7 +72,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-ausf
     restart: unless-stopped
     command: ausf
@@ -86,7 +92,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-nssf
     restart: unless-stopped
     command: nssf
@@ -103,7 +111,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-pcf
     restart: unless-stopped
     command: pcf
@@ -120,7 +130,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-bsf
     restart: unless-stopped
     command: bsf
@@ -137,7 +149,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-amf
     restart: unless-stopped
     command: amf
@@ -157,7 +171,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-upf
     restart: unless-stopped
     command: upf
@@ -184,7 +200,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-smf
     restart: unless-stopped
     command: smf
@@ -203,7 +221,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: open5gs-deploy:${OPEN5GS_TAG}
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+    image: open5gs-deploy:${OPEN5GS_VERSION}
     container_name: open5gs-webui
     restart: unless-stopped
     command: webui

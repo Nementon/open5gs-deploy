@@ -79,7 +79,7 @@ case "$NF" in
         ;;
     webui)
         echo "Starting WebUI..."
-        cd /usr/lib/node_modules/open5gs
+        cd /opt/open5gs/webui
         exec /usr/bin/node server/index.js "$@"
         ;;
     *)

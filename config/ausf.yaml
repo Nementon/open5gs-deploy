@@ -1,3 +1,7 @@
+global:
+  max:
+    ue: 1024
+
 logger:
   file: /open5gs/logs/ausf.log
   level: info

@@ -1,8 +1,15 @@
+global:
+  max:
+    ue: 1024
+
 logger:
   file: /open5gs/logs/amf.log
   level: info
 
 amf:
+  time:
+    t3512:
+      value: 540
   sbi:
     server:
       - address: 10.9.0.30

@@ -1,3 +1,7 @@
+global:
+  max:
+    ue: 1024
+
 logger:
   file: /open5gs/logs/nssf.log
   level: info
@@ -10,3 +14,8 @@ nssf:
     client:
       nrf:
         - uri: http://10.9.0.10:7777
+      nsi:
+        - uri: http://10.9.0.10:7777
+          s_nssai:
+            sst: 1
+            sd: 000001
