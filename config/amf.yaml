@@ -12,14 +12,14 @@ amf:
       value: 540
   sbi:
     server:
-      - address: 10.9.0.30
+      - address: {{MY_IP}}
         port: 7777
     client:
       nrf:
-        - uri: http://10.9.0.10:7777
+        - uri: http://{{NRF_IP}}:7777
   ngap:
     server:
-      - address: 10.9.0.30
+      - address: {{MY_IP}}
   guami:
     - plmn_id:
         mcc: 999
@@ -44,5 +44,3 @@ amf:
     integrity_order : [ NIA2, NIA1, NIA0 ]
     ciphering_order : [ NEA0, NEA1, NEA2 ]
   amf_name: open5gs-amf1
-#  network_name:
-#    full: Open5GS

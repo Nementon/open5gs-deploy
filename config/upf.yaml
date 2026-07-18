@@ -9,10 +9,10 @@ logger:
 upf:
   pfcp:
     server:
-      - address: 10.9.0.50
+      - address: {{MY_IP}}
   gtpu:
     server:
-      - address: 10.9.0.50
+      - address: {{MY_IP}}
   session:
     - subnet: 10.45.0.1/16
       dnn: internet

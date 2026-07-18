@@ -9,5 +9,5 @@ logger:
 nrf:
   sbi:
     server:
-      - address: 10.9.0.10
+      - address: {{MY_IP}}
         port: 7777

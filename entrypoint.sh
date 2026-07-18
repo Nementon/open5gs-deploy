@@ -17,14 +17,62 @@ if [ -z "$NF" ]; then
     usage
 fi
 
+# Helper function to resolve a service name using DNS with retries
+resolve_ip() {
+    local host=$1
+    local ip=""
+    for i in {1..30}; do
+        # Use getent hosts to resolve IP. 
+        # Inside docker network, service names resolve directly.
+        ip=$(getent hosts "$host" | awk '{print $1}' | head -n1)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "ERROR: Failed to resolve host: $host" >&2
+    exit 1
+}
+
+# Dynamic Configuration Processing (except for WebUI which has no YAML config)
+if [ "$NF" != "webui" ]; then
+    # Get local container IP address on eth0
+    MY_IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1)
+    echo "Local container IP: ${MY_IP}"
+
+    # Create writable tmp config directory and copy config template
+    mkdir -p /tmp/config
+    cp /open5gs/config/${NF}.yaml /tmp/config/${NF}.yaml
+
+    # Replace MY_IP placeholder
+    sed -i "s/{{MY_IP}}/${MY_IP}/g" /tmp/config/${NF}.yaml
+
+    # Resolve NRF IP for components that require registration
+    if [ "$NF" != "nrf" ] && [ "$NF" != "upf" ]; then
+        echo "Waiting for NRF to be resolvable..."
+        NRF_IP=$(resolve_ip nrf)
+        echo "Resolved NRF IP: ${NRF_IP}"
+        sed -i "s/{{NRF_IP}}/${NRF_IP}/g" /tmp/config/${NF}.yaml
+    fi
+
+    # Resolve UPF IP for SMF (needed for SMF client association config)
+    if [ "$NF" = "smf" ]; then
+        echo "Waiting for UPF to be resolvable..."
+        UPF_IP=$(resolve_ip upf)
+        echo "Resolved UPF IP: ${UPF_IP}"
+        sed -i "s/{{UPF_IP}}/${UPF_IP}/g" /tmp/config/${NF}.yaml
+    fi
+fi
+
 case "$NF" in
     amf)
         echo "Starting AMF..."
-        exec open5gs-amfd -c /open5gs/config/amf.yaml "$@"
+        exec open5gs-amfd -c /tmp/config/amf.yaml "$@"
         ;;
     smf)
         echo "Starting SMF..."
-        exec open5gs-smfd -c /open5gs/config/smf.yaml "$@"
+        exec open5gs-smfd -c /tmp/config/smf.yaml "$@"
         ;;
     upf)
         echo "Configuring UPF Network (TUN & NAT)..."
@@ -47,35 +95,35 @@ case "$NF" in
         iptables -t nat -A POSTROUTING -s ${UE_SUBNET:-10.45.0.0/16} ! -o ogstun -j MASQUERADE
 
         echo "Starting UPF..."
-        exec open5gs-upfd -c /open5gs/config/upf.yaml "$@"
+        exec open5gs-upfd -c /tmp/config/upf.yaml "$@"
         ;;
     nrf)
         echo "Starting NRF..."
-        exec open5gs-nrfd -c /open5gs/config/nrf.yaml "$@"
+        exec open5gs-nrfd -c /tmp/config/nrf.yaml "$@"
         ;;
     udr)
         echo "Starting UDR..."
-        exec open5gs-udrd -c /open5gs/config/udr.yaml "$@"
+        exec open5gs-udrd -c /tmp/config/udr.yaml "$@"
         ;;
     udm)
         echo "Starting UDM..."
-        exec open5gs-udmd -c /open5gs/config/udm.yaml "$@"
+        exec open5gs-udmd -c /tmp/config/udm.yaml "$@"
         ;;
     ausf)
         echo "Starting AUSF..."
-        exec open5gs-ausfd -c /open5gs/config/ausf.yaml "$@"
+        exec open5gs-ausfd -c /tmp/config/ausf.yaml "$@"
         ;;
     pcf)
         echo "Starting PCF..."
-        exec open5gs-pcfd -c /open5gs/config/pcf.yaml "$@"
+        exec open5gs-pcfd -c /tmp/config/pcf.yaml "$@"
         ;;
     nssf)
         echo "Starting NSSF..."
-        exec open5gs-nssfd -c /open5gs/config/nssf.yaml "$@"
+        exec open5gs-nssfd -c /tmp/config/nssf.yaml "$@"
         ;;
     bsf)
         echo "Starting BSF..."
-        exec open5gs-bsfd -c /open5gs/config/bsf.yaml "$@"
+        exec open5gs-bsfd -c /tmp/config/bsf.yaml "$@"
         ;;
     webui)
         echo "Starting WebUI..."
