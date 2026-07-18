@@ -18,5 +18,5 @@ nssf:
       nsi:
         - uri: http://{{NRF_IP}}:80
           s_nssai:
-            sst: 1
-            sd: 000001
+            sst: {{SST}}
+            sd: {{SD}}

@@ -48,6 +48,13 @@ if [ "$NF" != "webui" ]; then
     # Replace MY_IP placeholder
     sed -i "s/{{MY_IP}}/${MY_IP}/g" /tmp/config/${NF}.yaml
 
+    # Replace MCC, MNC, TAC, SST, SD placeholders (with environment fallbacks)
+    sed -i "s/{{MCC}}/${MCC:-999}/g" /tmp/config/${NF}.yaml
+    sed -i "s/{{MNC}}/${MNC:-70}/g" /tmp/config/${NF}.yaml
+    sed -i "s/{{TAC}}/${TAC:-1}/g" /tmp/config/${NF}.yaml
+    sed -i "s/{{SST}}/${SST:-1}/g" /tmp/config/${NF}.yaml
+    sed -i "s/{{SD}}/${SD:-000001}/g" /tmp/config/${NF}.yaml
+
     # Resolve NRF IP for components that require registration
     if [ "$NF" != "nrf" ] && [ "$NF" != "upf" ]; then
         echo "Waiting for NRF to be resolvable..."
