@@ -22,6 +22,7 @@ This deployment isolates each Network Function (NF) into its own container, uses
 - [Managing Subscribers via WebUI](#managing-subscribers-via-webui)
 - [UERANSIM Integration](#ueransim-integration)
 - [Stop & Clean Up](#stop--clean-up)
+- [License](#license)
 
 ---
 
@@ -496,3 +497,9 @@ To stop a specific alternative stack:
 ```bash
 docker compose -p open5gs-alt down -v
 ```
+
+---
+
+## License
+
+This project is licensed under the **"THE BEER-WARE LICENSE" (Revision 42)**. See the [LICENSE](LICENSE) file for details.
