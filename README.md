@@ -106,6 +106,12 @@ graph TD
    sudo modprobe tun
    ```
 
+### Pre-flight System Verification
+You can run the included pre-flight check script to automatically verify all system requirements, kernel modules, and environment setup:
+```bash
+./check-prereqs.sh
+```
+
 ---
 
 ## Environment Configuration (.env)
