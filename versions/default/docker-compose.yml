@@ -134,7 +134,7 @@ services:
       - MCC=${MCC:-999}
       - MNC=${MNC:-70}
       - SST=${SST:-1}
-      - SD=${SD:-000001}
+      - SD=${SD:-ffffff}
       - OPEN5GS_UID=${OPEN5GS_UID:-9999}
       - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
@@ -179,7 +179,7 @@ services:
       - MNC=${MNC:-70}
       - TAC=${TAC:-1}
       - SST=${SST:-1}
-      - SD=${SD:-000001}
+      - SD=${SD:-ffffff}
       - OPEN5GS_UID=${OPEN5GS_UID:-9999}
       - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
@@ -204,6 +204,8 @@ services:
     environment:
       - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
       - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
+      - ENABLE_UE_EGRESS_ISOLATION=${ENABLE_UE_EGRESS_ISOLATION:-false}
+      - UE_ALLOWED_PRIVATE_EGRESS_SUBNETS=${UE_ALLOWED_PRIVATE_EGRESS_SUBNETS:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - OPEN5GS_UID=${OPEN5GS_UID:-9999}
       - OPEN5GS_GID=${OPEN5GS_GID:-9999}
@@ -260,7 +262,7 @@ services:
       - MCC=${MCC:-999}
       - MNC=${MNC:-70}
       - SST=${SST:-1}
-      - SD=${SD:-000001}
+      - SD=${SD:-ffffff}
       - OPEN5GS_UID=${OPEN5GS_UID:-9999}
       - OPEN5GS_GID=${OPEN5GS_GID:-9999}
       - LOG_LEVEL=${LOG_LEVEL:-info}

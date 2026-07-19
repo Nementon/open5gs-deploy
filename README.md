@@ -144,11 +144,13 @@ Below is a detailed mapping of all configurable variables:
 | `MNC` | `70` | Mobile Network Code configured in the AMF PLMN settings. |
 | `TAC` | `1` | Tracking Area Code configured in the AMF settings. |
 | `SST` | `1` | Slice/Service Type (SST) value for the default 5G network slice. |
-| `SD` | `000001` | Slice Differentiator (SD) hex value for the default 5G network slice. |
+| `SD` | `ffffff` | Slice Differentiator (SD) hex value for the default 5G network slice. |
 | `DB_URI` | `mongodb://mongodb:27017/open5gs` | MongoDB URI connection string used by NFs (PCF, UDR) and provisioning scripts. |
 | `PROVISION_SUBSCRIBERS` | `false` | Set to `true` to enable automatic subscriber provisioning in the database at boot. |
 | `UE_SUBNET` | `10.45.0.0/16` | IPv4 address allocation range mapped to mobile user equipment devices. |
 | `UE_GATEWAY` | `10.45.0.1` | Gateway IP address assigned to the UPF tunnel interface (`ogstun`). |
+| `ENABLE_UE_EGRESS_ISOLATION` | `false` | Set to `true` to block UEs from accessing host private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`). |
+| `UE_ALLOWED_PRIVATE_EGRESS_SUBNETS` | *(empty)* | Comma-separated list of explicitly permitted private subnets/IPs when `ENABLE_UE_EGRESS_ISOLATION` is enabled. Defaults to empty (blocks all RFC1918 traffic). |
 
 ---
 
@@ -251,10 +253,37 @@ To enable seamless mobile data routing and internet access for connected User Eq
 ---
 
 ## Security & Least-Privilege Architecture
+
+### Process Privilege Hardening
 All Open5GS Network Functions (`AMF`, `SMF`, `UPF`, `UDR`, `UDM`, `AUSF`, `PCF`, `NSSF`, `BSF`, `WebUI`) execute under an unprivileged user (`open5gs`, UID/GID `9999` by default):
 * **Custom UID/GID Mapping**: Prevents collisions with host system accounts (`0-999`) or normal host users (`1000-2000`). Custom numerical IDs can be configured via `OPEN5GS_UID` and `OPEN5GS_GID` in `.env`.
 * **Privilege Dropping via `setpriv`**: Container entrypoint initializes boot tasks as `root` (creating `/tmp/config/${NF}.yaml`, fixing directory permissions on host-mounted volume `./logs`, creating `ogstun` TUN device owned by `open5gs`, and configuring `iptables MASQUERADE`). The entrypoint then immediately drops privileges to the unprivileged `open5gs` user using `setpriv` before executing the Open5GS daemon process.
 * **Unprivileged UPF Daemon**: The `ogstun` TUN interface is created with `user open5gs` ownership, allowing `open5gs-upfd` to process user-plane data packets without running as `root`.
+
+### Network Security & Egress Isolation
+By default, **no network isolation or egress filtering is applied** to user-plane traffic passing through the UPF container (`ENABLE_UE_EGRESS_ISOLATION=false`). Outbound IP packets originating from connected User Equipments (UEs) are translated via NAT (`iptables -t nat -A POSTROUTING`) and forwarded across any route accessible to the UPF container and host OS.
+
+> [!WARNING]
+> **Permissive Default Forwarding Behavior**
+> With `ENABLE_UE_EGRESS_ISOLATION=false`, connected UEs can reach **any network destination accessible by the host OS**, including:
+> - Private/internal IPv4 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+> - Host loopback (`127.0.0.0/8`) and adjacent Docker container networks.
+> - External WAN / public internet destinations.
+
+#### **Enabling On-Demand Egress Isolation & Whitelisting**
+To easily harden network isolation via configuration, set `ENABLE_UE_EGRESS_ISOLATION=true` in your `.env` file:
+
+```env
+# Enable strict egress filtering (blocks all RFC1918 private subnets and host loopback by default)
+ENABLE_UE_EGRESS_ISOLATION=true
+
+# Optional: Comma-separated list of explicitly permitted private subnets/IPs (Default: empty)
+UE_ALLOWED_PRIVATE_EGRESS_SUBNETS=10.45.0.0/16,10.0.0.53
+```
+
+When `ENABLE_UE_EGRESS_ISOLATION=true` is set without explicit configuration (`UE_ALLOWED_PRIVATE_EGRESS_SUBNETS=`), **all private RFC1918 traffic (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`) is blocked by default**, permitting only public WAN/internet traffic. 
+
+If specific internal targets (such as an internal DNS server or intra-UE communications) are required, add them to `UE_ALLOWED_PRIVATE_EGRESS_SUBNETS`.
 
 ---
 

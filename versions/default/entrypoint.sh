@@ -80,7 +80,7 @@ if [ "$NF" != "webui" ]; then
     sed -i "s/{{MNC}}/${MNC:-70}/g" /tmp/config/${NF}.yaml
     sed -i "s/{{TAC}}/${TAC:-1}/g" /tmp/config/${NF}.yaml
     sed -i "s/{{SST}}/${SST:-1}/g" /tmp/config/${NF}.yaml
-    sed -i "s/{{SD}}/${SD:-000001}/g" /tmp/config/${NF}.yaml
+    sed -i "s/{{SD}}/${SD:-ffffff}/g" /tmp/config/${NF}.yaml
 
     # Replace UE_SUBNET and UE_GATEWAY placeholders
     sed -i "s|{{UE_SUBNET}}|${UE_SUBNET:-10.45.0.0/16}|g" /tmp/config/${NF}.yaml
@@ -142,6 +142,39 @@ case "$NF" in
 
         # Set up NAT/MASQUERADE to route UE traffic to the outer network
         iptables -t nat -A POSTROUTING -s ${UE_SUBNET:-10.45.0.0/16} ! -o ogstun -j MASQUERADE
+
+        # Opt-in Network Egress Isolation Filtering
+        if [ "${ENABLE_UE_EGRESS_ISOLATION:-false}" = "true" ] || [ "${ENABLE_UE_EGRESS_ISOLATION:-false}" = "True" ]; then
+            echo "[UPF] Enabling Network Egress Isolation..."
+
+            # Create dedicated FORWARD chain for UE Egress Isolation
+            iptables -N UE_EGRESS 2>/dev/null || iptables -F UE_EGRESS
+            iptables -C FORWARD -i ogstun -j UE_EGRESS 2>/dev/null || iptables -I FORWARD 1 -i ogstun -j UE_EGRESS
+
+            # Parse and apply explicit ACCEPT rules for UE_ALLOWED_PRIVATE_EGRESS_SUBNETS if configured
+            if [ -n "${UE_ALLOWED_PRIVATE_EGRESS_SUBNETS:-}" ]; then
+                IFS=',' read -ra SUBNET_LIST <<< "${UE_ALLOWED_PRIVATE_EGRESS_SUBNETS}"
+                for subnet in "${SUBNET_LIST[@]}"; do
+                    subnet=$(echo "$subnet" | xargs)
+                    if [ -n "$subnet" ]; then
+                        echo "[UPF] Whitelisting permitted private egress destination: ${subnet}"
+                        iptables -A UE_EGRESS -d "$subnet" -j ACCEPT
+                    fi
+                done
+            fi
+
+            # Block access to Host Loopback and Private RFC1918 subnets
+            iptables -A UE_EGRESS -d 127.0.0.0/8 -j DROP
+            iptables -A UE_EGRESS -d 10.0.0.0/8 -j DROP
+            iptables -A UE_EGRESS -d 172.16.0.0/12 -j DROP
+            iptables -A UE_EGRESS -d 192.168.0.0/16 -j DROP
+
+            # Allow outbound traffic to public internet
+            iptables -A UE_EGRESS -j ACCEPT
+            echo "[UPF] Network Egress Isolation active: All unapproved private subnets (RFC1918) blocked for UE traffic."
+        else
+            echo "[UPF] Network Egress Isolation disabled (default: permissive forwarding)."
+        fi
 
         echo "Starting UPF..."
         run_as_open5gs open5gs-upfd -c /tmp/config/upf.yaml "$@"
