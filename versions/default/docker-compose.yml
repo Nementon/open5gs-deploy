@@ -23,6 +23,8 @@ services:
     command: nrf
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -43,6 +45,8 @@ services:
     environment:
       - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -62,6 +66,8 @@ services:
       - udr
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -81,6 +87,8 @@ services:
       - udm
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -101,6 +109,8 @@ services:
       - SST=${SST:-1}
       - SD=${SD:-ffffff}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -120,11 +130,13 @@ services:
       - nrf
     environment:
       - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - MCC=${MCC:-999}
       - MNC=${MNC:-70}
       - SST=${SST:-1}
-      - SD=${SD:-ffffff}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SD=${SD:-000001}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -143,6 +155,8 @@ services:
       - nrf
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -160,12 +174,14 @@ services:
     depends_on:
       - nrf
     environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - MCC=${MCC:-999}
       - MNC=${MNC:-70}
       - TAC=${TAC:-1}
       - SST=${SST:-1}
-      - SD=${SD:-ffffff}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SD=${SD:-000001}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     ports:
@@ -189,6 +205,8 @@ services:
       - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
       - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     cap_add:
       - NET_ADMIN
     devices:
@@ -218,6 +236,8 @@ services:
       - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
       - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
     volumes:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
@@ -235,14 +255,14 @@ services:
     depends_on:
       - mongodb
     environment:
-      - DB_URI=mongodb://mongodb:27017/open5gs
-      - HOSTNAME=0.0.0.0
-      - PORT=9999
+      - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
       - PROVISION_SUBSCRIBERS=${PROVISION_SUBSCRIBERS:-false}
       - MCC=${MCC:-999}
       - MNC=${MNC:-70}
       - SST=${SST:-1}
-      - SD=${SD:-ffffff}
+      - SD=${SD:-000001}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - "${WEBUI_PORT:-9999}:9999"

@@ -14,8 +14,9 @@ This deployment isolates each Network Function (NF) into its own container, uses
 - [Environment Configuration (.env)](#environment-configuration-env)
 - [Configuration & Compose Versioning](#configuration--compose-versioning)
 - [Automated Subscriber Provisioning](#automated-subscriber-provisioning)
-  - [PCF Local Policy (Internet DNN)](#4-pcf-local-policy-internet-dnn)
-  - [User Plane Subnet & Gateway Architecture](#5-user-plane-subnet--gateway-architecture)
+- [PCF Local Policy (Internet DNN)](#pcf-local-policy-internet-dnn)
+- [User Plane Subnet & Gateway Architecture](#user-plane-subnet--gateway-architecture)
+- [Security & Least-Privilege Architecture](#security--least-privilege-architecture)
 - [Quick Start](#quick-start)
 - [Running Multiple Stacks Simultaneously](#running-multiple-stacks-simultaneously)
 - [Managing Subscribers via WebUI](#managing-subscribers-via-webui)
@@ -85,6 +86,7 @@ graph TD
 - **Automated User Plane Setup**: The UPF entrypoint script automatically initializes the `ogstun` tunnel device and configures NAT (MASQUERADE) rules so that Connected Devices (UEs) can access the external internet.
 - **Automated Subscriber Provisioning**: Programmatically seed database entries for SIM cards / User Equipment (UEs) at container boot.
 - **Persistent DB & Logs**: MongoDB data is persisted via Docker volumes, and all network function logs are saved to host directory paths.
+- **Least-Privilege Security**: All Network Functions (Control Plane and UPF) run under a dedicated unprivileged user (`open5gs`, UID/GID `9999` by default). Initial root privileges in `entrypoint.sh` are dropped via `setpriv` after creating the `ogstun` TUN device (owned by `open5gs`) and `iptables` NAT rules, ensuring zero daemons run as `root`.
 
 ---
 
@@ -129,6 +131,8 @@ Below is a detailed mapping of all configurable variables:
 | `MONGODB_VERSION` | `6.0` | Container image tag of the MongoDB database service. |
 | `MONGO_INITDB_ROOT_USERNAME` | *(empty)* | Optional root username for MongoDB authentication. |
 | `MONGO_INITDB_ROOT_PASSWORD` | *(empty)* | Optional root password for MongoDB authentication. |
+| `OPEN5GS_UID` | `9999` | Numerical User ID assigned to the `open5gs` container process to prevent host collisions. |
+| `OPEN5GS_GID` | `9999` | Numerical Group ID assigned to the `open5gs` container process to prevent host collisions. |
 | `MONGODB_PORT` | `27017` | Host port mapped to the MongoDB server instance. |
 | `AMF_NGAP_PORT` | `38412` | Host port mapped to the AMF service for SCTP gNodeB control plane connection. |
 | `UPF_GTPU_PORT` | `2152` | Host port mapped to the UPF service for UDP user plane user-data traffic. |
@@ -223,7 +227,7 @@ If `PROVISION_SUBSCRIBERS` is set to `true` but **no** custom `subscribers.json`
 - **AMBR Speed**: 1 Gbps DL / 1 Gbps UL.
 - **Keys**: Standard test SIM keys (`K`, `OPc`, `AMF`) and matching network slice (`SST`, `SD`).
 
-### 4. PCF Local Policy (Internet DNN)
+## PCF Local Policy (Internet DNN)
 To ensure reliable session establishment and prevent Policy Control Function (PCF) crashes, the PCF is configured with a local policy block in `pcf.yaml` for the `internet` DNN. 
 
 By default, when a UE registers, the PCF queries the UDR for Access and Mobility policy data from MongoDB. If no policy documents are defined in the UDR MongoDB collections, the query returns an empty response, causing a crash in the PCF. 
@@ -235,11 +239,21 @@ Defining a static local policy block directly inside `pcf.yaml` bypasses the UDR
 
 This configuration is automatically templetized and applied during container startup.
 
-### 5. User Plane Subnet & Gateway Architecture
+---
+
+## User Plane Subnet & Gateway Architecture
 To enable seamless mobile data routing and internet access for connected User Equipments (UEs):
 * **Gateway & IPAM Reservation**: Both the **SMF** (`smf.yaml`) and **UPF** (`upf.yaml`) session blocks are configured with `gateway: {{UE_GATEWAY}}`. This instructs SMF IP Address Management (IPAM) to reserve the gateway address (`10.45.0.1`) and allocate client IPs starting from `10.45.0.2` onwards.
 * **Automatic CIDR Formatting**: The UPF entrypoint automatically formats the `ogstun` TUN interface with the CIDR netmask matching `UE_SUBNET` (`10.45.0.1/16`). This ensures Linux in-kernel routing forwards ICMP/IP packets between `10.45.0.1` and client UEs (`10.45.0.x`).
 * **NAT / MASQUERADE**: Outbound traffic from the `UE_SUBNET` range is automatically translated (MASQUERADED) by `iptables` out of the UPF container's WAN interface to external destinations (e.g. `8.8.8.8`).
+
+---
+
+## Security & Least-Privilege Architecture
+All Open5GS Network Functions (`AMF`, `SMF`, `UPF`, `UDR`, `UDM`, `AUSF`, `PCF`, `NSSF`, `BSF`, `WebUI`) execute under an unprivileged user (`open5gs`, UID/GID `9999` by default):
+* **Custom UID/GID Mapping**: Prevents collisions with host system accounts (`0-999`) or normal host users (`1000-2000`). Custom numerical IDs can be configured via `OPEN5GS_UID` and `OPEN5GS_GID` in `.env`.
+* **Privilege Dropping via `setpriv`**: Container entrypoint initializes boot tasks as `root` (creating `/tmp/config/${NF}.yaml`, fixing directory permissions on host-mounted volume `./logs`, creating `ogstun` TUN device owned by `open5gs`, and configuring `iptables MASQUERADE`). The entrypoint then immediately drops privileges to the unprivileged `open5gs` user using `setpriv` before executing the Open5GS daemon process.
+* **Unprivileged UPF Daemon**: The `ogstun` TUN interface is created with `user open5gs` ownership, allowing `open5gs-upfd` to process user-plane data packets without running as `root`.
 
 ---
 

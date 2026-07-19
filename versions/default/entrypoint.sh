@@ -1,8 +1,35 @@
 #!/bin/bash
 set -e
 
-# Enable IP forwarding inside the container
-sysctl -w net.ipv4.ip_forward=1 || true
+# Dynamically adjust open5gs UID and GID if custom values are passed via environment
+if [ "$(id -u)" = "0" ]; then
+    TARGET_UID="${OPEN5GS_UID:-9999}"
+    TARGET_GID="${OPEN5GS_GID:-9999}"
+
+    CURRENT_UID=$(id -u open5gs 2>/dev/null || echo "")
+    CURRENT_GID=$(id -g open5gs 2>/dev/null || echo "")
+
+    if [ -n "$TARGET_GID" ] && [ "$TARGET_GID" != "$CURRENT_GID" ]; then
+        groupmod -o -g "$TARGET_GID" open5gs 2>/dev/null || true
+    fi
+    if [ -n "$TARGET_UID" ] && [ "$TARGET_UID" != "$CURRENT_UID" ]; then
+        usermod -o -u "$TARGET_UID" -g "${TARGET_GID:-open5gs}" open5gs 2>/dev/null || true
+    fi
+
+    # Ensure log and config directories exist and are owned by open5gs with 755 permissions
+    mkdir -p /open5gs/logs /var/log/open5gs /tmp/config 2>/dev/null || true
+    chown -R open5gs:open5gs /open5gs/logs /var/log/open5gs /tmp/config 2>/dev/null || chmod -R 755 /open5gs/logs /tmp/config 2>/dev/null || true
+    chmod 755 /tmp/config 2>/dev/null || true
+fi
+
+# Helper function to drop privileges to open5gs user if running as root
+run_as_open5gs() {
+    if [ "$(id -u)" = "0" ]; then
+        exec setpriv --reuid=open5gs --regid=open5gs --clear-groups "$@"
+    else
+        exec "$@"
+    fi
+}
 
 NF=$1
 shift || true
@@ -85,14 +112,15 @@ fi
 case "$NF" in
     amf)
         echo "Starting AMF..."
-        exec open5gs-amfd -c /tmp/config/amf.yaml "$@"
+        run_as_open5gs open5gs-amfd -c /tmp/config/amf.yaml "$@"
         ;;
     smf)
         echo "Starting SMF..."
-        exec open5gs-smfd -c /tmp/config/smf.yaml "$@"
+        run_as_open5gs open5gs-smfd -c /tmp/config/smf.yaml "$@"
         ;;
     upf)
         echo "Configuring UPF Network (TUN & NAT)..."
+        sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true
         # Ensure /dev/net/tun is available
         if [ ! -c /dev/net/tun ]; then
             mkdir -p /dev/net
@@ -103,8 +131,8 @@ case "$NF" in
         # Delete existing TUN if present
         ip link delete ogstun dev ogstun 2>/dev/null || true
 
-        # Create TUN interface
-        ip tuntap add name ogstun mode tun
+        # Create TUN interface owned by open5gs user
+        ip tuntap add name ogstun mode tun user open5gs
         GW_IP="${UE_GATEWAY:-10.45.0.1}"
         if [ "${GW_IP#*/}" = "${GW_IP}" ]; then
             GW_IP="${GW_IP}/${UE_SUBNET#*/}"
@@ -116,44 +144,48 @@ case "$NF" in
         iptables -t nat -A POSTROUTING -s ${UE_SUBNET:-10.45.0.0/16} ! -o ogstun -j MASQUERADE
 
         echo "Starting UPF..."
-        exec open5gs-upfd -c /tmp/config/upf.yaml "$@"
+        run_as_open5gs open5gs-upfd -c /tmp/config/upf.yaml "$@"
         ;;
     nrf)
         echo "Starting NRF..."
-        exec open5gs-nrfd -c /tmp/config/nrf.yaml "$@"
+        run_as_open5gs open5gs-nrfd -c /tmp/config/nrf.yaml "$@"
         ;;
     udr)
         echo "Starting UDR..."
-        exec open5gs-udrd -c /tmp/config/udr.yaml "$@"
+        run_as_open5gs open5gs-udrd -c /tmp/config/udr.yaml "$@"
         ;;
     udm)
         echo "Starting UDM..."
-        exec open5gs-udmd -c /tmp/config/udm.yaml "$@"
+        run_as_open5gs open5gs-udmd -c /tmp/config/udm.yaml "$@"
         ;;
     ausf)
         echo "Starting AUSF..."
-        exec open5gs-ausfd -c /tmp/config/ausf.yaml "$@"
+        run_as_open5gs open5gs-ausfd -c /tmp/config/ausf.yaml "$@"
         ;;
     pcf)
         echo "Starting PCF..."
-        exec open5gs-pcfd -c /tmp/config/pcf.yaml "$@"
+        run_as_open5gs open5gs-pcfd -c /tmp/config/pcf.yaml "$@"
         ;;
     nssf)
         echo "Starting NSSF..."
-        exec open5gs-nssfd -c /tmp/config/nssf.yaml "$@"
+        run_as_open5gs open5gs-nssfd -c /tmp/config/nssf.yaml "$@"
         ;;
     bsf)
         echo "Starting BSF..."
-        exec open5gs-bsfd -c /tmp/config/bsf.yaml "$@"
+        run_as_open5gs open5gs-bsfd -c /tmp/config/bsf.yaml "$@"
         ;;
     webui)
         if [ "${PROVISION_SUBSCRIBERS:-false}" = "true" ] || [ "${PROVISION_SUBSCRIBERS:-false}" = "True" ]; then
             echo "Subscriber provisioning is enabled. Running provision script..."
-            NODE_PATH=/opt/open5gs/webui/node_modules /usr/bin/node /open5gs/provision.js
+            if [ "$(id -u)" = "0" ]; then
+                setpriv --reuid=open5gs --regid=open5gs --clear-groups env NODE_PATH=/opt/open5gs/webui/node_modules /usr/bin/node /open5gs/provision.js
+            else
+                NODE_PATH=/opt/open5gs/webui/node_modules /usr/bin/node /open5gs/provision.js
+            fi
         fi
         echo "Starting WebUI..."
         cd /opt/open5gs/webui
-        exec /usr/bin/node server/index.js "$@"
+        run_as_open5gs /usr/bin/node server/index.js "$@"
         ;;
     *)
         echo "Unknown Network Function: $NF"

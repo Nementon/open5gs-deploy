@@ -92,6 +92,9 @@ COPY --from=builder /opt/open5gs /opt/open5gs
 # Copy the built WebUI folder from builder
 COPY --from=builder /src/open5gs/webui /opt/open5gs/webui
 
+# Create unprivileged system group and user open5gs with explicit reserved high UID/GID (9999)
+RUN groupadd -g 9999 open5gs && useradd -u 9999 -g 9999 -s /bin/false -M open5gs
+
 # Configure search paths for binaries and shared libraries
 ENV PATH="/opt/open5gs/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/open5gs/lib:/opt/open5gs/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
@@ -103,7 +106,7 @@ ARG OPEN5GS_VERSION=v2.7.2
 COPY versions /tmp/versions
 
 # Resolve and copy version-specific or default configuration, entrypoint, and provision script
-RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs && \
+RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs /tmp/config && \
     if [ -d "/tmp/versions/${OPEN5GS_VERSION}" ]; then \
         echo "Using specific configurations for version ${OPEN5GS_VERSION}"; \
         cp -aL /tmp/versions/${OPEN5GS_VERSION}/config/* /open5gs/config/ 2>/dev/null || cp -a /tmp/versions/default/config/* /open5gs/config/; \
@@ -116,6 +119,8 @@ RUN mkdir -p /open5gs/config /open5gs/logs /var/log/open5gs && \
         cp /tmp/versions/default/provision.js /open5gs/provision.js; \
     fi && \
     chmod +x /open5gs/entrypoint.sh && \
+    chown -R open5gs:open5gs /open5gs /opt/open5gs /var/log/open5gs /tmp/config && \
+    chmod 755 /tmp/config && \
     rm -rf /tmp/versions
 
 # Set working directory
