@@ -6,6 +6,24 @@ This deployment isolates each Network Function (NF) into its own container, uses
 
 ---
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Environment Configuration (.env)](#environment-configuration-env)
+- [Configuration & Compose Versioning](#configuration--compose-versioning)
+- [Automated Subscriber Provisioning](#automated-subscriber-provisioning)
+  - [PCF Local Policy (Internet DNN)](#4-pcf-local-policy-internet-dnn)
+  - [User Plane Subnet & Gateway Architecture](#5-user-plane-subnet--gateway-architecture)
+- [Quick Start](#quick-start)
+- [Running Multiple Stacks Simultaneously](#running-multiple-stacks-simultaneously)
+- [Managing Subscribers via WebUI](#managing-subscribers-via-webui)
+- [UERANSIM Integration](#ueransim-integration)
+- [Stop & Clean Up](#stop--clean-up)
+
+---
+
 ## Architecture
 
 Instead of relying on rigid, hardcoded IP addresses, this architecture uses Docker Compose's built-in DNS aliases. Docker allocates dynamic subnet ranges for each stack, and the containers self-orchestrate on startup using a DNS resolution wait-loop in the entrypoint.
@@ -123,7 +141,7 @@ Below is a detailed mapping of all configurable variables:
 
 ## Configuration & Compose Versioning
 
-Since different versions of Open5GS can introduce new network functions (NFs) or change configuration schemas, all components are cleanly versioned inside the [versions/](versions/) directory:
+Since different versions of Open5GS can introduce new network functions (NFs) or change configuration schemas, all components are versioned inside the [versions/](versions/) directory:
 
 - `versions/default/`: Holds the default baseline configurations, the core templates, the template substitution `entrypoint.sh` script, and `docker-compose.yml`.
 - `versions/<VERSION>/`: Holds overrides or custom files specific to a target Open5GS release.
@@ -208,6 +226,12 @@ Defining a static local policy block directly inside `pcf.yaml` bypasses the UDR
 *   **DNN / APN**: Dedicated for the `internet` profile with 1 Gbps uplink and downlink AMBR limits.
 
 This configuration is automatically templetized and applied during container startup.
+
+### 5. User Plane Subnet & Gateway Architecture
+To enable seamless mobile data routing and internet access for connected User Equipments (UEs):
+* **Gateway & IPAM Reservation**: Both the **SMF** (`smf.yaml`) and **UPF** (`upf.yaml`) session blocks are configured with `gateway: {{UE_GATEWAY}}`. This instructs SMF IP Address Management (IPAM) to reserve the gateway address (`10.45.0.1`) and allocate client IPs starting from `10.45.0.2` onwards.
+* **Automatic CIDR Formatting**: The UPF entrypoint automatically formats the `ogstun` TUN interface with the CIDR netmask matching `UE_SUBNET` (`10.45.0.1/16`). This ensures Linux in-kernel routing forwards ICMP/IP packets between `10.45.0.1` and client UEs (`10.45.0.x`).
+* **NAT / MASQUERADE**: Outbound traffic from the `UE_SUBNET` range is automatically translated (MASQUERADED) by `iptables` out of the UPF container's WAN interface to external destinations (e.g. `8.8.8.8`).
 
 ---
 
@@ -310,13 +334,13 @@ gtpIp: 192.168.1.100   # Replace with UERANSIM host IP
 
 # AMF IP address and NGAP port (mapped to host)
 amfConfigs:
-  - address: 172.18.0.42    # Replace with Open5GS AMF IP / Or Open5GS Host IP (docker forwarding)
+  - address: 172.18.0.42    # Replace with Open5GS AMF host IP / Or Open5GS Host IP (docker forwarding)
     port: 38412             # Must match AMF_NGAP_PORT in .env
 
 # Slices configured in AMF
 slices:
   - sst: 1            # Must match SST in .env
-    sd: 0x000001      # Must match SD in .env (in hex format)
+    sd: 0xffffff      # Must match SD in .env (in hex format)
 
 # Cell access type. When set to one of the satellite types (nr-leo, nr-meo,
 # nr-geo, nr-othersat), the gNB attaches the NR-NTN TAI Information extension
@@ -406,7 +430,7 @@ uacAcc:
    ```
 2. Start the UE process:
    ```bash
-   ./nr-binder -c open5gs-ue.yaml
+   ./nr-ue -c open5gs-ue.yaml
    ```
    On successful connection, UERANSIM will create a virtual network interface `uesimtun0` on the UE host machine.
 3. Test internet connectivity through the Open5GS UPF NAT gateway:
@@ -424,15 +448,17 @@ If UERANSIM gNodeB and containerized Open5GS run on the **same physical host**, 
    # Map UPF GTP-U to host loopback IP only to avoid conflict
    UPF_GTPU_PORT=127.0.0.1:2152
    ```
-2. Configure UERANSIM gNodeB (`open5gs-gnb.yaml`) to bind to your external host IP (e.g. `192.168.1.14`):
+2. Configure UERANSIM gNodeB (`open5gs-gnb.yaml`) to bind to your host IP (e.g. `192.168.1.100`):
    ```yaml
-   ngapIp: 192.168.1.14  # Your actual host IP
-   gtpIp: 192.168.1.14   # Your actual host IP
+   linkIp: 192.168.1.100  # Your actual host IP
+   ngapIp: 192.168.1.100  # Your actual host IP
+   gtpIp: 192.168.1.100   # Your actual host IP
 
    amfConfigs:
-     - address: 127.0.0.1  # Connect to Open5GS via loopback
+     - address: 192.168.1.100  # Your actual Host IP (Open5GS Host IP - docker port forwarding)
        port: 38412
    ```
+
 This allows both processes to bind to port `2152` simultaneously on different IP interfaces.
 
 ---
