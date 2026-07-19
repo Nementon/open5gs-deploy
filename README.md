@@ -127,6 +127,8 @@ Below is a detailed mapping of all configurable variables:
 | :--- | :--- | :--- |
 | `OPEN5GS_VERSION` | `v2.7.2` | Git tag/version of the Open5GS codebase to clone, build, and use. |
 | `MONGODB_VERSION` | `6.0` | Container image tag of the MongoDB database service. |
+| `MONGO_INITDB_ROOT_USERNAME` | *(empty)* | Optional root username for MongoDB authentication. |
+| `MONGO_INITDB_ROOT_PASSWORD` | *(empty)* | Optional root password for MongoDB authentication. |
 | `MONGODB_PORT` | `27017` | Host port mapped to the MongoDB server instance. |
 | `AMF_NGAP_PORT` | `38412` | Host port mapped to the AMF service for SCTP gNodeB control plane connection. |
 | `UPF_GTPU_PORT` | `2152` | Host port mapped to the UPF service for UDP user plane user-data traffic. |
