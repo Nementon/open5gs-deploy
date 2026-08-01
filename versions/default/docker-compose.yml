@@ -1,4 +1,6 @@
 services:
+
+  # BEGIN: Shared, O&M Components
   mongodb:
     image: mongo:${MONGODB_VERSION:-6.0}
     restart: unless-stopped
@@ -12,6 +14,34 @@ services:
     ports:
       - "${MONGODB_PORT:-27017}:27017"
 
+  webui:
+    build:
+      context: ${COMPOSE_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
+    restart: unless-stopped
+    command: webui
+    depends_on:
+      - mongodb
+    environment:
+      - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
+      - PROVISION_SUBSCRIBERS=${PROVISION_SUBSCRIBERS:-false}
+      - MCC=${MCC:-999}
+      - MNC=${MNC:-70}
+      - SST=${SST:-1}
+      - SD=${SD:-ffffff}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${WEBUI_PORT:-9999}:9999"
+    networks:
+      - open5gs-net
+  # END: Shared, O&M Components
+
+  # BEGIN 5G Components
   nrf:
     build:
       context: ${COMPOSE_CONTEXT:-.}
@@ -234,6 +264,7 @@ services:
       - nrf
       - amf
       - upf
+      - pcrf
     environment:
       - UE_SUBNET=${UE_SUBNET:-10.45.0.0/16}
       - UE_GATEWAY=${UE_GATEWAY:-10.45.0.1}
@@ -244,8 +275,10 @@ services:
       - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
+  # END: 5G Components
 
-  webui:
+  # BEGIN: 4G Components
+  pcrf:
     build:
       context: ${COMPOSE_CONTEXT:-.}
       dockerfile: Dockerfile
@@ -253,23 +286,109 @@ services:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
     image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
     restart: unless-stopped
-    command: webui
+    command: pcrf
+    depends_on:
+      - mongodb
+      - nrf
+    environment:
+      - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
+    volumes:
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
+    networks:
+      - open5gs-net
+
+  hss:
+    build:
+      context: ${COMPOSE_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
+    restart: unless-stopped
+    command: hss
     depends_on:
       - mongodb
     environment:
       - DB_URI=${DB_URI:-mongodb://mongodb:27017/open5gs}
-      - PROVISION_SUBSCRIBERS=${PROVISION_SUBSCRIBERS:-false}
-      - MCC=${MCC:-999}
-      - MNC=${MNC:-70}
-      - SST=${SST:-1}
-      - SD=${SD:-ffffff}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - OPEN5GS_UID=${OPEN5GS_UID:-9999}
       - OPEN5GS_GID=${OPEN5GS_GID:-9999}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-    ports:
-      - "${WEBUI_PORT:-9999}:9999"
+    volumes:
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
     networks:
       - open5gs-net
+
+  mme:
+    build:
+      context: ${COMPOSE_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
+    restart: unless-stopped
+    command: mme
+    depends_on:
+      - hss
+      - smf
+      - sgwc
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MCC=${MCC:-999}
+      - MNC=${MNC:-70}
+      - MME_GID=${MME_GID:-2}
+      - MME_CODE=${MME_CODE:-1}
+      - TAC=${TAC:-1}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
+    volumes:
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
+    ports:
+      # S1AP interface for eNodeB connection (SCTP)
+      - "${MME_S1AP_PORT:-36412}:36412/sctp"
+    networks:
+      - open5gs-net
+
+  sgwc:
+    build:
+      context: ${COMPOSE_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
+    restart: unless-stopped
+    command: sgwc
+    depends_on:
+      - sgwu
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
+    volumes:
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
+    networks:
+      - open5gs-net
+
+  sgwu:
+    build:
+      context: ${COMPOSE_CONTEXT:-.}
+      dockerfile: Dockerfile
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION:-v2.7.2}
+    image: open5gs-deploy:${OPEN5GS_VERSION:-v2.7.2}
+    restart: unless-stopped
+    command: sgwu
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OPEN5GS_UID=${OPEN5GS_UID:-9999}
+      - OPEN5GS_GID=${OPEN5GS_GID:-9999}
+    volumes:
+      - "${LOGS_DIR:-./logs}:/open5gs/logs"
+    networks:
+      - open5gs-net    
+  # END: 4G Components
 
 volumes:
   mongodb_data:

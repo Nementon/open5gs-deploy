@@ -36,7 +36,10 @@ shift || true
 
 # Helper function to print usage
 usage() {
-    echo "Usage: $0 [amf|smf|upf|nrf|udr|udm|ausf|pcf|nssf|bsf|webui]"
+    echo "Usage: $0 [amf|smf|upf|nrf|udr|udm|ausf|pcf|nssf|bsf|webui|pcrf|hss|mme|sgwc|sgwu]"
+    echo " -- 5G components: amf,smf,upf,nrf,udr,udm,ausf,pcf,nssf,bsf"
+    echo " -- 4G components: hss,mme,sgwc,sgwu"
+    echo " -- O&M components: webui"
     exit 1
 }
 
@@ -100,16 +103,77 @@ if [ "$NF" != "webui" ]; then
         sed -i "s/{{NRF_IP}}/${NRF_IP}/g" /tmp/config/${NF}.yaml
     fi
 
-    # Resolve UPF IP for SMF (needed for SMF client association config)
+    # Resolve UPF, PCRF IP for SMF (needed for SMF client association config)
     if [ "$NF" = "smf" ]; then
-        echo "Waiting for UPF to be resolvable..."
-        UPF_IP=$(resolve_ip upf)
-        echo "Resolved UPF IP: ${UPF_IP}"
-        sed -i "s/{{UPF_IP}}/${UPF_IP}/g" /tmp/config/${NF}.yaml
+        for NF_TYPE in "UPF" "PCRF"; do
+            echo "Waiting for ${NF_TYPE} to be resolvable..."
+            NF_IP=$(resolve_ip "$(echo "$NF_TYPE" | tr 'A-Z' 'a-z')")
+            echo "Resolved ${NF_TYPE} IP: ${NF_IP}"
+            sed -i "s/{{${NF_TYPE}_IP}}/${NF_IP}/g" /tmp/config/${NF}.yaml
+        done
+        
+        # Configure freeDiameter for SMF
+        cp /opt/open5gs/etc/freeDiameter/smf.conf /tmp/config/smf.conf
+        PCRF_IP=$(resolve_ip pcrf)
+        sed -i "s/127.0.0.9/${PCRF_IP}/g" /tmp/config/smf.conf
+    fi
+
+    # Configure freeDiameter for HSS
+    if [ "$NF" = "hss" ]; then
+        cp /opt/open5gs/etc/freeDiameter/hss.conf /tmp/config/hss.conf
+        echo "Waiting for MME to be resolvable..."
+        MME_IP=$(resolve_ip mme)
+        echo "Resolved MME IP: ${MME_IP}"
+        sed -i "s/127.0.0.2/${MME_IP}/g" /tmp/config/hss.conf
+    fi
+
+    # Configure freeDiameter for PCRF
+    if [ "$NF" = "pcrf" ]; then
+        cp /opt/open5gs/etc/freeDiameter/pcrf.conf /tmp/config/pcrf.conf
+        echo "Waiting for SMF to be resolvable..."
+        SMF_IP=$(resolve_ip smf)
+        echo "Resolved SMF IP: ${SMF_IP}"
+        sed -i "s/127.0.0.4/${SMF_IP}/g" /tmp/config/pcrf.conf
+    fi
+
+    # Resolve SGWC, SMF, HSS IP for MME
+    if [ "$NF" = "mme" ]; then
+        for NF_TYPE in "SGWC" "SMF" "HSS"; do
+            echo "Waiting for ${NF_TYPE} to be resolvable..."
+            NF_IP=$(resolve_ip "$(echo "$NF_TYPE" | tr 'A-Z' 'a-z')")
+            echo "Resolved ${NF_TYPE} IP: ${NF_IP}"
+            sed -i "s/{{${NF_TYPE}_IP}}/${NF_IP}/g" /tmp/config/${NF}.yaml
+        done
+        
+        # Configure freeDiameter for MME
+        cp /opt/open5gs/etc/freeDiameter/mme.conf /tmp/config/mme.conf
+        HSS_IP=$(resolve_ip hss)
+        sed -i "s/127.0.0.8/${HSS_IP}/g" /tmp/config/mme.conf
+        
+        # Template MME_GID and MME_CODE and TAC
+        sed -i "s/{{MME_GID}}/${MME_GID:-2}/g" /tmp/config/mme.yaml
+        sed -i "s/{{MME_CODE}}/${MME_CODE:-1}/g" /tmp/config/mme.yaml
+        sed -i "s/{{TAC}}/${TAC:-1}/g" /tmp/config/mme.yaml
+    fi
+
+    # Resolve SGWU for SGWC
+    if [ "$NF" == "sgwc" ]; then
+        for NF_TYPE in "SGWU"; do
+            echo "Waiting for ${NF_TYPE} to be resolvable..."
+            NF_IP=$(resolve_ip "$(echo "$NF_TYPE" | tr 'A-Z' 'a-z')")
+            echo "Resolved ${NF_TYPE} IP: ${NF_IP}"
+            sed -i "s/{{${NF_TYPE}_IP}}/${NF_IP}/g" /tmp/config/${NF}.yaml
+        done
+    fi
+
+    # Ensure all freeDiameter configs listen on all interfaces instead of localhost
+    if ls /tmp/config/*.conf 1> /dev/null 2>&1; then
+        sed -i 's/ListenOn = "127.0.0.[0-9]"/ListenOn = "0.0.0.0"/g' /tmp/config/*.conf
     fi
 fi
 
 case "$NF" in
+    # 5G Components
     amf)
         echo "Starting AMF..."
         run_as_open5gs open5gs-amfd -c /tmp/config/amf.yaml "$@"
@@ -207,6 +271,28 @@ case "$NF" in
         echo "Starting BSF..."
         run_as_open5gs open5gs-bsfd -c /tmp/config/bsf.yaml "$@"
         ;;
+    # 4G Components
+    pcrf)
+        echo "Starting PCRF..."
+        run_as_open5gs open5gs-pcrfd -c /tmp/config/pcrf.yaml "$@"
+        ;;
+    hss)
+        echo "Starting HSS..."
+        run_as_open5gs open5gs-hssd -c /tmp/config/hss.yaml "$@"
+        ;;
+    mme)
+        echo "Starting MME..."
+        run_as_open5gs open5gs-mmed -c /tmp/config/mme.yaml "$@"
+        ;;
+    sgwc)
+        echo "Starting SGW-C..."
+        run_as_open5gs open5gs-sgwcd -c /tmp/config/sgwc.yaml "$@"
+        ;;
+    sgwu)
+        echo "Starting SGW-U..."
+        run_as_open5gs open5gs-sgwud -c /tmp/config/sgwu.yaml "$@"
+        ;;
+    # O&M Components
     webui)
         if [ "${PROVISION_SUBSCRIBERS:-false}" = "true" ] || [ "${PROVISION_SUBSCRIBERS:-false}" = "True" ]; then
             echo "Subscriber provisioning is enabled. Running provision script..."

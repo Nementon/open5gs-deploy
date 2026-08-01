@@ -32,45 +32,59 @@ Instead of relying on rigid, hardcoded IP addresses, this architecture uses Dock
 
 ```mermaid
 graph TD
-    subgraph Control Plane
+    subgraph CP [Control Plane]
         NRF["NRF (Dynamic IP)"]
         AMF["AMF (Dynamic IP)"]
-        SMF["SMF (Dynamic IP)"]
+        SMF["SMF / PGW-C (Dynamic IP)"]
         UDR["UDR (Dynamic IP)"]
         UDM["UDM (Dynamic IP)"]
         AUSF["AUSF (Dynamic IP)"]
         PCF["PCF (Dynamic IP)"]
         BSF["BSF (Dynamic IP)"]
         NSSF["NSSF (Dynamic IP)"]
+        MME["MME (Dynamic IP)"]
+        HSS["HSS (Dynamic IP)"]
+        SGWC["SGW-C (Dynamic IP)"]
+        PCRF["PCRF (Dynamic IP)"]
     end
 
-    subgraph Database & Management
+    subgraph DB [Database & Management]
         Mongo["MongoDB (Dynamic IP)"]
         WebUI["WebUI (Dynamic IP)"]
     end
 
-    subgraph User Plane
-        UPF["UPF (Dynamic IP)"]
+    subgraph UP [User Plane]
+        UPF["UPF / PGW-U (Dynamic IP)"]
+        SGWU["SGW-U (Dynamic IP)"]
     end
 
-    subgraph RAN / gNodeB
-        gNB["gNodeB (External / Host)"]
+    subgraph RAN [Radio Access Network]
+        gNB["gNodeB / eNodeB (External)"]
     end
 
     %% Database Connections
-    UDR --> Mongo
-    WebUI --> Mongo
+    UDR & WebUI & HSS & PCRF --> Mongo
 
     %% SBI Registrations & Discovery via DNS
     AMF & SMF & UDR & UDM & AUSF & PCF & BSF & NSSF -->|Register SBI / Discover via NRF DNS| NRF
 
-    %% Control Plane connections
+    %% 5G Control Plane connections
     AMF <-->|SBI / HTTP2| SMF
     SMF <-->|PFCP / Port 8805| UPF
     
+    %% 4G Control Plane connections
+    MME <-->|Diameter S6a| HSS
+    MME <-->|GTP-C S11| SGWC
+    SGWC <-->|GTP-C S5-C| SMF
+    SMF <-->|Diameter Gx| PCRF
+    SGWC <-->|PFCP| SGWU
+
     %% User Plane Data path
-    gNB <-->|S1-MME / SCTP Host Port| AMF
-    gNB <-->|S1-U / GTP-U Host Port| UPF
+    gNB <-->|N2 / SCTP Host Port| AMF
+    gNB <-->|S1-MME / SCTP Host Port| MME
+    gNB <-->|N3 / GTP-U Host Port| UPF
+    gNB <-->|S1-U / GTP-U Host Port| SGWU
+    SGWU <-->|S5-U / GTP-U| UPF
     UPF <-->|ogstun / NAT| Internet["Internet (Host WAN)"]
 ```
 
@@ -79,6 +93,7 @@ graph TD
 ## Features
 
 - **Microservices-based**: Every Open5GS Network Function runs in its own container.
+- **Hybrid 4G/5G Core**: Full EPS (4G) and 5GC (5G) support deployed side-by-side, supporting seamless dual attachment out-of-the-box.
 - **Optimized Multi-Stage Build**: Staged Docker build that compiles Open5GS from source and discards compilation tools in the final runtime stage, keeping container images extremely lightweight.
 - **Switchable & Versioned Configuration**: Build and switch between arbitrary Open5GS versions (e.g. `v2.7.2`, `v2.6.6`) by changing variables in the `.env` file. Both configuration files, the entrypoint runner, and `docker-compose.yml` are versioned side-by-side.
 - **Dynamic IP Assignment**: Docker manages and assigns host network subnets dynamically. No hardcoded static subnetting required.
@@ -136,13 +151,16 @@ Below is a detailed mapping of all configurable variables:
 | `OPEN5GS_GID` | `9999` | Numerical Group ID assigned to the `open5gs` container process to prevent host collisions. |
 | `MONGODB_PORT` | `27017` | Host port mapped to the MongoDB server instance. |
 | `AMF_NGAP_PORT` | `38412` | Host port mapped to the AMF service for SCTP gNodeB control plane connection. |
+| `MME_S1AP_PORT` | `36412` | Host port mapped to the MME service for SCTP eNodeB connection (4G). |
 | `UPF_GTPU_PORT` | `2152` | Host port mapped to the UPF service for UDP user plane user-data traffic. |
 | `WEBUI_PORT` | `9999` | Host port mapped to the Open5GS Web Administration UI. |
 | `LOGS_DIR` | `./logs` | Host directory location where container log files will be persisted. |
 | `LOG_LEVEL` | `info` | Logging level of the Open5GS NFs (e.g. `info`, `debug`, `trace`, `warn`, `error`). |
-| `MCC` | `999` | Mobile Country Code configured in the AMF PLMN settings. |
-| `MNC` | `70` | Mobile Network Code configured in the AMF PLMN settings. |
-| `TAC` | `1` | Tracking Area Code configured in the AMF settings. |
+| `MCC` | `999` | Mobile Country Code configured in the AMF/MME PLMN settings. |
+| `MNC` | `70` | Mobile Network Code configured in the AMF/MME PLMN settings. |
+| `TAC` | `1` | Tracking Area Code configured in the AMF/MME settings. |
+| `MME_GID` | `2` | MME Group ID (4G). |
+| `MME_CODE` | `1` | MME Code (4G). |
 | `SST` | `1` | Slice/Service Type (SST) value for the default 5G network slice. |
 | `SD` | `ffffff` | Slice Differentiator (SD) hex value for the default 5G network slice. |
 | `DB_URI` | `mongodb://mongodb:27017/open5gs` | MongoDB URI connection string used by NFs (PCF, UDR) and provisioning scripts. |
@@ -194,6 +212,26 @@ Here is a sample structure for `subscribers.json`:
       "amf": "8000",
       "opc": "E8ED289DEBA952E4283B54E88E6183CA"
     },
+    "network_access_mode": 2,
+    "pdn": [
+      {
+        "apn": "internet",
+        "pcc_rule": [],
+        "ambr": {
+          "uplink": { "value": 1, "unit": 3 },
+          "downlink": { "value": 1, "unit": 3 }
+        },
+        "qos": {
+          "qci": 9,
+          "arp": {
+            "priority_level": 8,
+            "pre_emption_capability": 1,
+            "pre_emption_vulnerability": 1
+          }
+        },
+        "type": 2
+      }
+    ],
     "slice": [
       {
         "sst": 1,
@@ -229,6 +267,7 @@ If `PROVISION_SUBSCRIBERS` is set to `true` but **no** custom `subscribers.json`
 - **IMSI**: `${MCC}${MNC}000000001` (e.g., `99970000000001` with default settings).
 - **AMBR Speed**: 1 Gbps DL / 1 Gbps UL.
 - **Keys**: Standard test SIM keys (`K`, `OPc`, `AMF`) and matching network slice (`SST`, `SD`).
+- **4G & 5G Ready**: Includes both 5G `slice` parameters and 4G `pdn` (APN) parameters so the UE can seamlessly attach via MME/HSS or AMF/SMF out-of-the-box.
 
 ## PCF Local Policy (Internet DNN)
 To ensure reliable session establishment and prevent Policy Control Function (PCF) crashes, the PCF is configured with a local policy block in `pcf.yaml` for the `internet` DNN. 
@@ -255,7 +294,7 @@ To enable seamless mobile data routing and internet access for connected User Eq
 ## Security & Least-Privilege Architecture
 
 ### Process Privilege Hardening
-All Open5GS Network Functions (`AMF`, `SMF`, `UPF`, `UDR`, `UDM`, `AUSF`, `PCF`, `NSSF`, `BSF`, `WebUI`) execute under an unprivileged user (`open5gs`, UID/GID `9999` by default):
+All Open5GS Network Functions (`AMF`, `SMF`, `UPF`, `UDR`, `UDM`, `AUSF`, `PCF`, `NSSF`, `BSF`, `MME`, `HSS`, `SGWC`, `SGWU`, `PCRF`, `WebUI`) execute under an unprivileged user (`open5gs`, UID/GID `9999` by default):
 * **Custom UID/GID Mapping**: Prevents collisions with host system accounts (`0-999`) or normal host users (`1000-2000`). Custom numerical IDs can be configured via `OPEN5GS_UID` and `OPEN5GS_GID` in `.env`.
 * **Privilege Dropping via `setpriv`**: Container entrypoint initializes boot tasks as `root` (creating `/tmp/config/${NF}.yaml`, fixing directory permissions on host-mounted volume `./logs`, creating `ogstun` TUN device owned by `open5gs`, and configuring `iptables MASQUERADE`). The entrypoint then immediately drops privileges to the unprivileged `open5gs` user using `setpriv` before executing the Open5GS daemon process.
 * **Unprivileged UPF Daemon**: The `ogstun` TUN interface is created with `user open5gs` ownership, allowing `open5gs-upfd` to process user-plane data packets without running as `root`.
@@ -324,6 +363,7 @@ To prevent `address already in use` port collisions on `0.0.0.0`, allocate disti
 # Start a secondary stack ("open5gs-alt") with distinct host ports and log folder
 MONGODB_PORT=27018 \
 AMF_NGAP_PORT=38413 \
+MME_S1AP_PORT=36413 \
 UPF_GTPU_PORT=2153 \
 WEBUI_PORT=9998 \
 LOGS_DIR=./logs-alt \
@@ -340,6 +380,7 @@ You can restrict port exposure to specific host loopback addresses (e.g. `127.0.
 # Bind secondary stack ports exclusively to a local loopback interface (127.0.0.2)
 MONGODB_PORT=127.0.0.2:27017 \
 AMF_NGAP_PORT=127.0.0.2:38412 \
+MME_S1AP_PORT=127.0.0.2:36412 \
 UPF_GTPU_PORT=127.0.0.2:2152 \
 WEBUI_PORT=127.0.0.2:9999 \
 LOGS_DIR=./logs-alt \

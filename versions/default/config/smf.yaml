@@ -8,9 +8,17 @@ logger:
   level: {{LOG_LEVEL}}
 
 smf:
+  # 4G 
+  ## this `gtpc`  block to enable the PGW-C S5-C interface on UDP 2123
+  gtpc:
+    server:
+      - address: {{MY_IP}}
+  freeDiameter: /tmp/config/smf.conf
+
   gtpu:
     server:
       - address: {{MY_IP}}
+  # 5G
   sbi:
     server:
       - address: {{MY_IP}}

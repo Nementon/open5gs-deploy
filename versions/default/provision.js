@@ -53,6 +53,26 @@ async function main() {
                         uplink: { value: 1, unit: 3 }, // 1 Gbps
                         downlink: { value: 1, unit: 3 }
                     },
+                    network_access_mode: 2,
+                    pdn: [
+                        {
+                            apn: 'internet',
+                            pcc_rule: [],
+                            ambr: {
+                                uplink: { value: 1, unit: 3 },
+                                downlink: { value: 1, unit: 3 }
+                            },
+                            qos: {
+                                qci: 9,
+                                arp: {
+                                    priority_level: 8,
+                                    pre_emption_capability: 1,
+                                    pre_emption_vulnerability: 1
+                                }
+                            },
+                            type: 2
+                        }
+                    ],
                     slice: [
                         {
                             sst: sst,

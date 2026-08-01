@@ -1,0 +1,44 @@
+global:
+  max:
+    ue: 1024
+
+logger:
+  file: 
+    path: /open5gs/logs/mme.log
+  level: {{LOG_LEVEL}}
+
+mme:
+  s1ap:
+    server:
+      - address: {{MY_IP}}
+  gtpc:
+    server:
+      - address: {{MY_IP}}
+    client:
+      sgwc:
+        - address: {{SGWC_IP}}
+      smf:
+        - address: {{SMF_IP}}
+  freeDiameter: /tmp/config/mme.conf
+  metrics:
+    server:
+      - address: {{MY_IP}}
+        port: 9090
+  gummei:
+    - plmn_id:
+        mcc: {{MCC}}
+        mnc: {{MNC}}
+      mme_gid: {{MME_GID}}
+      mme_code: {{MME_CODE}}
+  tai:
+    - plmn_id:
+        mcc: {{MCC}}
+        mnc: {{MNC}}
+      tac: {{TAC}}
+  security:
+    integrity_order : [ EIA2, EIA1, EIA0 ]
+    ciphering_order : [ EEA0, EEA1, EEA2 ]
+  network_name:
+    full: Open5GS
+    short: Next
+  mme_name: open5gs-mme1

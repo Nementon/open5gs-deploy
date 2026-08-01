@@ -12,6 +12,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment and local configurations
+.env
 .env.local
 .env.*.local
 
