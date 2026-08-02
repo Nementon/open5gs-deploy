@@ -185,6 +185,22 @@ case "$NF" in
     upf)
         echo "Configuring UPF Network (TUN & NAT)..."
         sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true
+        
+        # CRITICAL: Disable TX/RX checksum offloading on the container's primary interface (eth0).
+        # In local/virtualized deployments (like Docker veth pairs), the kernel defers checksum 
+        # calculation by attaching CHECKSUM_PARTIAL metadata to the outgoing sk_buff. 
+        # If the host uses eBPF (XDP) to strip outer encapsulation headers before the driver,
+        # this metadata becomes corrupted (offsets point to garbage), leading to silent packet 
+        # drops deep in the host kernel's `dev_queue_xmit`/`neigh_resolve_output` when routing the inner packet.
+        # Disabling offloading here forces synchronous software checksum calculation inside the container.
+        if [ "${UPF_DISABLE_CHECKSUM_OFFLOADING:-true}" = "true" ] || [ "${UPF_DISABLE_CHECKSUM_OFFLOADING:-true}" = "True" ]; then
+            if command -v ethtool >/dev/null 2>&1; then
+                ethtool -K eth0 tx off rx off 2>/dev/null || echo "WARNING: Failed to disable checksum offloading on eth0"
+            else
+                echo "WARNING: ethtool not found. Cannot disable checksum offloading on eth0."
+            fi
+        fi
+
         # Ensure /dev/net/tun is available
         if [ ! -c /dev/net/tun ]; then
             mkdir -p /dev/net

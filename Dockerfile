@@ -81,6 +81,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     tcpdump \
     ca-certificates \
+    ethtool \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \

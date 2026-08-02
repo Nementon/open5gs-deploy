@@ -169,6 +169,7 @@ Below is a detailed mapping of all configurable variables:
 | `UE_GATEWAY` | `10.45.0.1` | Gateway IP address assigned to the UPF tunnel interface (`ogstun`). |
 | `ENABLE_UE_EGRESS_ISOLATION` | `false` | Set to `true` to block UEs from accessing host private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`). |
 | `UE_ALLOWED_PRIVATE_EGRESS_SUBNETS` | *(empty)* | Comma-separated list of explicitly permitted private subnets/IPs when `ENABLE_UE_EGRESS_ISOLATION` is enabled. Defaults to empty (blocks all RFC1918 traffic). |
+| `UPF_DISABLE_CHECKSUM_OFFLOADING` | `true` | Set to `true` to disable tx/rx checksum offloading via ethtool on the UPF interface (fixes packet drops with eBPF/XDP host data planes but slightly impacts performance). |
 
 ---
 
@@ -288,6 +289,7 @@ To enable seamless mobile data routing and internet access for connected User Eq
 * **Gateway & IPAM Reservation**: Both the **SMF** (`smf.yaml`) and **UPF** (`upf.yaml`) session blocks are configured with `gateway: {{UE_GATEWAY}}`. This instructs SMF IP Address Management (IPAM) to reserve the gateway address (`10.45.0.1`) and allocate client IPs starting from `10.45.0.2` onwards.
 * **Automatic CIDR Formatting**: The UPF entrypoint automatically formats the `ogstun` TUN interface with the CIDR netmask matching `UE_SUBNET` (`10.45.0.1/16`). This ensures Linux in-kernel routing forwards ICMP/IP packets between `10.45.0.1` and client UEs (`10.45.0.x`).
 * **NAT / MASQUERADE**: Outbound traffic from the `UE_SUBNET` range is automatically translated (MASQUERADED) by `iptables` out of the UPF container's WAN interface to external destinations (e.g. `8.8.8.8`).
+* **Virtual Interface Checksum Offloading (eBPF/XDP Compatibility)**: By setting `UPF_DISABLE_CHECKSUM_OFFLOADING=true` in your `.env` file, the entrypoint disables `tx/rx` checksum offloading on the UPF's primary `eth0` interface using `ethtool`. This is a critical compatibility fix for environments where the host machine uses eBPF (XDP) for hardware offloading of GTP-U encapsulation/decapsulation. In a local/virtualized deployment (like Docker veth pairs), the Linux kernel defers checksum calculation by attaching `CHECKSUM_PARTIAL` metadata to the outgoing `sk_buff`. If a host XDP program intercepts this packet and strips the outer encapsulation headers *before* the driver processes them, the checksum metadata survives but points to invalid/garbage offsets. This causes the host IP stack to silently drop the returning decapsulated packet in `dev_queue_xmit` when routing the inner packet. Disabling offloading forces synchronous software checksum calculation inside the container, preventing this metadata corruption and ensuring compatibility with host-side eBPF data planes. Enabled by default due to critical compatibility concerns, despite a slight performance impact.
 
 ---
 
